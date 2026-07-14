@@ -12,7 +12,7 @@ export default function Navigation({ activeSection, setActiveSection }) {
 
   return (
     <nav className="fixed top-0 z-50 w-full border-b border-border bg-background/90 backdrop-blur-md">
-      <div className="w-full px-[10%] h-16 flex items-center justify-between">
+      <div className="w-full px-6 md:px-[10%] h-16 flex items-center justify-between">
         {/* Brand */}
         <button
           onClick={() => handleNav('home')}
@@ -55,7 +55,7 @@ export default function Navigation({ activeSection, setActiveSection }) {
 
       {/* Mobile menu */}
       {menuOpen && (
-        <div className="md:hidden border-t border-border bg-background px-6 py-4 flex flex-col gap-1">
+        <div className="md:hidden border-t border-border bg-background px-6 md:px-[10%] py-4 flex flex-col gap-1">
           {NAV_ITEMS.map(item => (
             <button
               key={item}
