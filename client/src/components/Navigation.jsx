@@ -12,14 +12,13 @@ export default function Navigation({ activeSection, setActiveSection }) {
 
   return (
     <nav className="fixed top-0 z-50 w-full border-b border-border bg-background/90 backdrop-blur-md">
-      <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-        {/* Logo */}
+      <div className="w-full px-8 h-16 flex items-center justify-between">
+        {/* Brand */}
         <button
           onClick={() => handleNav('home')}
-          className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
+          className="flex items-center hover:opacity-80 transition-opacity"
           aria-label="Mugshot Studios — Home"
         >
-          <img src="/images/mugshot-logo.png" alt="Mugshot Studios" className="h-10 w-auto" />
           <span className="text-base md:text-lg font-bold tracking-tight text-foreground">MUGSHOT STUDIOS</span>
         </button>
 

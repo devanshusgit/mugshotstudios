@@ -59,6 +59,11 @@ export default function Home({ setActiveSection }) {
           />
         </div>
         <div className="relative z-10 text-center max-w-5xl mx-auto px-6 py-24">
+          <img
+            src="/images/mugshot-logo.png"
+            alt="Mugshot Studios"
+            className="h-36 md:h-48 w-auto mx-auto mb-6 drop-shadow-2xl"
+          />
           <p className="section-label mb-5">Mumbai · India · Est. 2024</p>
           <h1
             className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.1] mb-6 text-white"
