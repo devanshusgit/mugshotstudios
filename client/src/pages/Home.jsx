@@ -62,7 +62,7 @@ export default function Home({ setActiveSection }) {
           <img
             src="/images/mugshot-logo.png"
             alt="Mugshot Studios"
-            className="h-36 md:h-48 w-auto mx-auto mb-6 drop-shadow-2xl"
+            className="h-[151px] md:h-[201px] w-auto mx-auto mb-6 drop-shadow-2xl"
           />
           <p className="section-label mb-5">Mumbai · India · Est. 2024</p>
           <h1
