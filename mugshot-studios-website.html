@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mugshot Studios - AI Animation Production</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body { font-family: 'Inter', sans-serif; }
+        .hero-gradient { background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%); }
+        .entropy-canvas { filter: opacity(0.9); }
+        .section-padding { padding: 80px 20px; }
+        .btn-primary { @apply px-6 py-3 bg-white text-black font-semibold rounded-lg hover:bg-gray-100 transition-all; }
+        .btn-secondary { @apply px-6 py-3 border border-white text-white font-semibold rounded-lg hover:bg-white hover:text-black transition-all; }
+        .card-hover { @apply transition-all duration-300 hover:scale-105; }
+    </style>
+</head>
+<body class="bg-black text-white">
+    <div id="root"></div>
+
+    <script>
+        const { useState, useEffect, useRef } = React;
+
+        function Entropy({ className = "", size = 400 }) {
+            const canvasRef = useRef(null);
+
+            useEffect(() => {
+                const canvas = canvasRef.current;
+                if (!canvas) return;
+
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return;
+
+                const dpr = window.devicePixelRatio || 1;
+                canvas.width = size * dpr;
+                canvas.height = size * dpr;
+                canvas.style.width = `${size}px`;
+                canvas.style.height = `${size}px`;
+                ctx.scale(dpr, dpr);
+
+                const particleColor = '#ffffff';
+
+                class Particle {
+                    constructor(x, y, order) {
+                        this.x = x;
+                        this.y = y;
+                        this.originalX = x;
+                        this.originalY = y;
+                        this.size = 2;
+                        this.order = order;
+                        this.velocity = {
+                            x: (Math.random() - 0.5) * 2,
+                            y: (Math.random() - 0.5) * 2
+                        };
+                        this.influence = 0;
+                        this.neighbors = [];
+                    }
+
+                    update() {
+                        if (this.order) {
+                            const dx = this.originalX - this.x;
+                            const dy = this.originalY - this.y;
+                            const chaosInfluence = { x: 0, y: 0 };
+
+                            this.neighbors.forEach(neighbor => {
+                                if (!neighbor.order) {
+                                    const distance = Math.hypot(this.x - neighbor.x, this.y - neighbor.y);
+                                    const strength = Math.max(0, 1 - distance / 100);
+                                    chaosInfluence.x += (neighbor.velocity.x * strength);
+                                    chaosInfluence.y += (neighbor.velocity.y * strength);
+                                    this.influence = Math.max(this.influence, strength);
+                                }
+                            });
+
+                            this.x += dx * 0.05 * (1 - this.influence) + chaosInfluence.x * this.influence;
+                            this.y += dy * 0.05 * (1 - this.influence) + chaosInfluence.y * this.influence;
+                            this.influence *= 0.99;
+                        } else {
+                            this.velocity.x += (Math.random() - 0.5) * 0.5;
+                            this.velocity.y += (Math.random() - 0.5) * 0.5;
+                            this.velocity.x *= 0.95;
+                            this.velocity.y *= 0.95;
+                            this.x += this.velocity.x;
+                            this.y += this.velocity.y;
+
+                            if (this.x < size / 2 || this.x > size) this.velocity.x *= -1;
+                            if (this.y < 0 || this.y > size) this.velocity.y *= -1;
+                            this.x = Math.max(size / 2, Math.min(size, this.x));
+                            this.y = Math.max(0, Math.min(size, this.y));
+                        }
+                    }
+
+                    draw(ctx) {
+                        const alpha = this.order ? 0.8 - this.influence * 0.5 : 0.8;
+                        ctx.fillStyle = `${particleColor}${Math.round(alpha * 255).toString(16).padStart(2, '0')}`;
+                        ctx.beginPath();
+                        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+
+                const particles = [];
+                const gridSize = 25;
+                const spacing = size / gridSize;
+                for (let i = 0; i < gridSize; i++) {
+                    for (let j = 0; j < gridSize; j++) {
+                        const x = spacing * i + spacing / 2;
+                        const y = spacing * j + spacing / 2;
+                        const order = x < size / 2;
+                        particles.push(new Particle(x, y, order));
+                    }
+                }
+
+                function updateNeighbors() {
+                    particles.forEach(particle => {
+                        particle.neighbors = particles.filter(other => {
+                            if (other === particle) return false;
+                            const distance = Math.hypot(particle.x - other.x, particle.y - other.y);
+                            return distance < 100;
+                        });
+                    });
+                }
+
+                let time = 0;
+                let animationId;
+
+                function animate() {
+                    ctx.clearRect(0, 0, size, size);
+                    if (time % 30 === 0) updateNeighbors();
+
+                    particles.forEach(particle => {
+                        particle.update();
+                        particle.draw(ctx);
+
+                        particle.neighbors.forEach(neighbor => {
+                            const distance = Math.hypot(particle.x - neighbor.x, particle.y - neighbor.y);
+                            if (distance < 50) {
+                                const alpha = 0.2 * (1 - distance / 50);
+                                ctx.strokeStyle = `${particleColor}${Math.round(alpha * 255).toString(16).padStart(2, '0')}`;
+                                ctx.beginPath();
+                                ctx.moveTo(particle.x, particle.y);
+                                ctx.lineTo(neighbor.x, neighbor.y);
+                                ctx.stroke();
+                            }
+                        });
+                    });
+
+                    ctx.strokeStyle = `${particleColor}4D`;
+                    ctx.lineWidth = 0.5;
+                    ctx.beginPath();
+                    ctx.moveTo(size / 2, 0);
+                    ctx.lineTo(size / 2, size);
+                    ctx.stroke();
+
+                    time++;
+                    animationId = requestAnimationFrame(animate);
+                }
+                animate();
+
+                return () => {
+                    if (animationId) cancelAnimationFrame(animationId);
+                };
+            }, [size]);
+
+            return (
+                <div className={`relative bg-black ${className}`} style={{ width: size, height: size }}>
+                    <canvas
+                        ref={canvasRef}
+                        className="absolute inset-0 w-full h-full"
+                    />
+                </div>
+            );
+        }
+
+        function App() {
+            const [activeSection, setActiveSection] = useState('home');
+
+            return (
+                <div className="min-h-screen bg-black text-white">
+                    {/* Navigation */}
+                    <nav className="fixed top-0 z-50 w-full bg-black/80 backdrop-blur border-b border-gray-800">
+                        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+                            <div className="font-bold text-2xl">Mugshot Studios</div>
+                            <div className="flex gap-8 text-sm">
+                                {['home', 'technology', 'works', 'about', 'contact'].map(section => (
+                                    <button
+                                        key={section}
+                                        onClick={() => setActiveSection(section)}
+                                        className={`capitalize font-medium transition-colors ${activeSection === section ? 'text-white' : 'text-gray-400 hover:text-white'}`}
+                                    >
+                                        {section}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </nav>
+
+                    {/* HOME SECTION */}
+                    {activeSection === 'home' && (
+                        <div>
+                            {/* Hero */}
+                            <div className="relative h-screen flex items-center justify-center overflow-hidden pt-20">
+                                <div className="absolute inset-0 opacity-40">
+                                    <Entropy size={Math.min(window.innerWidth, 800)} />
+                                </div>
+                                <div className="relative z-10 text-center max-w-3xl mx-auto px-4">
+                                    <h1 className="text-6xl md:text-7xl font-bold mb-6 leading-tight">We don't make animation. We make YOUR animation.</h1>
+                                    <p className="text-xl text-gray-300 mb-8">Mumbai-based animation studio combining creative direction with proprietary AI production technology. We build custom animation pipelines trained on your IP — your characters, your style, your world.</p>
+                                    <div className="flex gap-4 justify-center flex-wrap">
+                                        <button className="btn-primary">See Our Work</button>
+                                        <button className="btn-secondary">Explore Vartool</button>
+                                        <button className="btn-secondary">Get in Touch</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Stats Strip */}
+                            <div className="bg-gray-900 py-12 px-4">
+                                <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+                                    <div>
+                                        <div className="text-4xl font-bold mb-2">🎬</div>
+                                        <div className="text-gray-300">11-Minute Episode<br/><span className="text-sm">Delivered in 3 Days</span></div>
+                                    </div>
+                                    <div>
+                                        <div className="text-4xl font-bold mb-2">🔒</div>
+                                        <div className="text-gray-300">100% Private<br/><span className="text-sm">Your data never touches a public AI system</span></div>
+                                    </div>
+                                    <div>
+                                        <div className="text-4xl font-bold mb-2">🌍</div>
+                                        <div className="text-gray-300">Active Projects<br/><span className="text-sm">Europe · Canada · UK · India</span></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* What We Do */}
+                            <section className="section-padding max-w-7xl mx-auto">
+                                <h2 className="text-4xl md:text-5xl font-bold mb-6">We Don't Make Generic Animation. We Make Yours.</h2>
+                                <p className="text-gray-400 text-lg leading-relaxed max-w-3xl">Every studio can produce animation. What Mugshot Studios does differently is build a production system trained specifically on your IP — your characters, your visual language, your world. The output isn't approximate. It isn't AI-generic. It is animation that looks and feels exactly like your show.</p>
+                                <p className="text-gray-400 text-lg leading-relaxed max-w-3xl mt-4">We work with broadcasters, distributors, independent producers, and brands who need high-quality animation produced consistently, quickly, and at a cost that makes ambitious series commercially viable.</p>
+                            </section>
+
+                            {/* Services */}
+                            <section className="section-padding bg-gray-900 max-w-7xl mx-auto w-full">
+                                <h2 className="text-4xl font-bold mb-12">Services</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    {[
+                                        { icon: '🎨', title: 'Custom Animation Production', desc: '2D and 3D animation for TV series, streaming platforms, YouTube, and digital content. Trained on your existing IP for complete visual consistency.' },
+                                        { icon: '⚡', title: 'AI-Accelerated Pipeline', desc: 'Our proprietary Vartool system delivers broadcast-quality episodes faster than any traditional studio. Without compromising quality.' },
+                                        { icon: '🎬', title: 'Live Action & Hybrid', desc: 'AI-assisted live action production for features, short films, and hybrid animation-live action formats.' }
+                                    ].map((service, idx) => (
+                                        <div key={idx} className="bg-black border border-gray-800 p-6 rounded-lg card-hover">
+                                            <div className="text-3xl mb-3">{service.icon}</div>
+                                            <h3 className="text-xl font-bold mb-3">{service.title}</h3>
+                                            <p className="text-gray-400">{service.desc}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+
+                            {/* Original IP */}
+                            <section className="section-padding max-w-7xl mx-auto">
+                                <h2 className="text-4xl font-bold mb-6">We Also Create Original Worlds</h2>
+                                <p className="text-gray-400 text-lg mb-10">Mugshot Studios develops original animated IP for the global market. Our debut slate features two original series being presented at MIFA Annecy 2026.</p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {[
+                                        { title: 'THE FIXERS', desc: '26 x 11 minutes | 3D Animation | Ages 4–7', status: 'Currently in production' },
+                                        { title: 'WONDER WORLD', desc: '26 x 11 minutes | 3D Animation | Ages 6–10', status: 'Currently in production' }
+                                    ].map((ip, idx) => (
+                                        <div key={idx} className="bg-gray-900 p-6 rounded-lg">
+                                            <h3 className="text-2xl font-bold mb-2">{ip.title}</h3>
+                                            <p className="text-gray-400 mb-3">{ip.desc}</p>
+                                            <p className="text-sm text-gray-500">{ip.status}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+                        </div>
+                    )}
+
+                    {/* TECHNOLOGY SECTION */}
+                    {activeSection === 'technology' && (
+                        <div className="pt-20">
+                            <section className="section-padding max-w-7xl mx-auto">
+                                <h1 className="text-5xl font-bold mb-4">Vartool</h1>
+                                <p className="text-xl text-gray-300 mb-8">The Production System That Learns Your IP</p>
+                                <p className="text-gray-400 text-lg leading-relaxed max-w-3xl">Vartool is Mugshot Studios' proprietary end-to-end AI production system. It is not a public AI tool. It is not licensed software. It is a closed, private, custom-trained pipeline built specifically around each client's content and it changes what is possible in animation production.</p>
+                            </section>
+
+                            <section className="section-padding bg-gray-900 max-w-7xl mx-auto w-full">
+                                <h2 className="text-4xl font-bold mb-12">From Script to Screen. In Days, Not Months.</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {[
+                                        { num: '1', title: 'Custom Training', desc: 'We train Vartool exclusively on your existing content. Your characters, your style, your visual language become the foundation.' },
+                                        { num: '2', title: 'Shot Division', desc: 'Your script is broken into individual shots with detailed staging notes — character blocking, expressions, backgrounds, and action.' },
+                                        { num: '3', title: 'Shotbot Prompt Generation', desc: 'Vartool\'s built-in engine reads each shot and automatically generates precise production prompts for every frame.' },
+                                        { num: '4', title: 'Frame Generation', desc: 'Shotbot generates frame images for each shot — positioned and staged exactly as specified.' },
+                                        { num: '5', title: 'Self-Evaluation Loop', desc: 'Vartool evaluates its own output. If a frame doesn\'t meet quality standards, it automatically regenerates.' },
+                                        { num: '6', title: 'Video & Render', desc: 'Completed shots move through editing and final render pipeline — sound design, compositing, colour grade.' }
+                                    ].map((step, idx) => (
+                                        <div key={idx} className="bg-black border border-gray-800 p-6 rounded-lg">
+                                            <div className="text-3xl font-bold text-gray-500 mb-3">Step {step.num}</div>
+                                            <h3 className="text-xl font-bold mb-3">{step.title}</h3>
+                                            <p className="text-gray-400">{step.desc}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+
+                            <section className="section-padding max-w-7xl mx-auto">
+                                <h2 className="text-4xl font-bold mb-6">Your Data. Your IP. Nobody Else's.</h2>
+                                <p className="text-gray-400 text-lg leading-relaxed max-w-3xl mb-6">When you work with Mugshot Studios, your content stays private. Always. Your episodes, character designs, scripts, and production assets are processed exclusively within our closed Vartool system. They never touch a public AI model.</p>
+                                <p className="text-xl italic text-gray-300">"Your characters. Your style. Your data. Our AI. Nobody else's."</p>
+                            </section>
+                        </div>
+                    )}
+
+                    {/* WORKS SECTION */}
+                    {activeSection === 'works' && (
+                        <div className="pt-20 section-padding max-w-7xl mx-auto">
+                            <h1 className="text-5xl font-bold mb-4">Our Work</h1>
+                            <p className="text-xl text-gray-300 mb-12">From original IP to contracted productions — here's what we build.</p>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {[
+                                    { title: 'WONDER WORLD', type: 'Original IP', desc: 'A living magical amusement park island. Three children. One unforgettable villain. 52 x 11 minutes.' },
+                                    { title: 'THE FIXERS', type: 'Original IP', desc: '26 x 11 minutes | 3D Animation | Ages 4–7. Currently in production.' },
+                                    { title: 'OPAL PRODUCTION CONTRACT', type: 'Client Work', desc: 'Contracted animation production for Opal Production SRL, Romania. Delivering broadcast-quality episodes using Vartool.' },
+                                    { title: 'CSIR-AMPRI DOCUMENTARIES', type: 'Documentary', desc: 'Science communication series for India\'s premier materials research institute.' },
+                                    { title: 'THE FOURTH WALL', type: 'Original IP', desc: 'A surreal thriller about characters trapped inside an AI-generated world. In development.' },
+                                    { title: 'INS ANJDIP FILM', type: 'Documentary', desc: '6-minute commissioning documentary film for the Indian Navy.' }
+                                ].map((work, idx) => (
+                                    <div key={idx} className="bg-gray-900 p-6 rounded-lg card-hover border border-gray-800">
+                                        <div className="text-sm text-gray-500 mb-2">{work.type}</div>
+                                        <h3 className="text-xl font-bold mb-3">{work.title}</h3>
+                                        <p className="text-gray-400">{work.desc}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ABOUT SECTION */}
+                    {activeSection === 'about' && (
+                        <div className="pt-20 section-padding max-w-7xl mx-auto">
+                            <h1 className="text-5xl font-bold mb-8">We Are Mugshot Studios</h1>
+
+                            <div className="prose prose-invert max-w-none mb-12">
+                                <p className="text-gray-400 text-lg leading-relaxed mb-6">Mugshot Studios is a Mumbai-based animation and content production studio incorporated in August 2024. In less than two years we have built active international partnerships across four continents, developed a proprietary AI production system that is unlike anything else in the animation industry, and created original IP now being presented at the world's most prestigious animation market.</p>
+
+                                <p className="text-gray-400 text-lg leading-relaxed">We are not a traditional service studio. We are not a generic AI tool provider. We are a creative technology studio — where human storytelling and intelligent production systems work together to produce content that is faster, cheaper, and more faithful to each client's creative vision than anything a traditional pipeline can offer.</p>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mt-12">
+                                <div>
+                                    <h3 className="text-2xl font-bold mb-3">Vivek Shukla</h3>
+                                    <p className="text-gray-500 font-semibold mb-3">Founder & Director</p>
+                                    <p className="text-gray-400">Filmmaker, writer, and animation creator with a vision to make broadcast-quality animation accessible to producers worldwide through technology. Vivek leads Mugshot Studios' creative direction, international partnerships, and the ongoing development of the Vartool production system.</p>
+                                </div>
+
+                                <div>
+                                    <h3 className="text-2xl font-bold mb-3">Team</h3>
+                                    <div className="space-y-4 text-gray-400">
+                                        <div>
+                                            <p className="font-semibold text-white">Samrat Dixit — Production Head</p>
+                                            <p className="text-sm">4+ years across animation, live action, and brand films. Heads AI-assisted animation and live action production.</p>
+                                        </div>
+                                        <div>
+                                            <p className="font-semibold text-white">Manav Mishra — CTO</p>
+                                            <p className="text-sm">Leads technology vision, building AI-driven creative tools and scalable production platforms.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="mt-12 pt-12 border-t border-gray-800">
+                                <p className="text-gray-500">📍 Unit 112, IJMIMA Complex, Off Link Road, Malad West, Mumbai 400064, India</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* CONTACT SECTION */}
+                    {activeSection === 'contact' && (
+                        <div className="pt-20 section-padding max-w-7xl mx-auto">
+                            <h1 className="text-5xl font-bold mb-6">Let's Build Something Together</h1>
+                            <p className="text-xl text-gray-300 mb-12 max-w-2xl">Whether you're a broadcaster, distributor, co-production partner, or brand — we'd love to hear from you. Tell us about your project and we'll come back to you within 24 hours.</p>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+                                <div className="bg-gray-900 p-8 rounded-lg">
+                                    <p className="text-gray-500 text-sm mb-2">Email</p>
+                                    <p className="text-xl font-semibold">admin@mugshotstudios.com</p>
+                                </div>
+                                <div className="bg-gray-900 p-8 rounded-lg">
+                                    <p className="text-gray-500 text-sm mb-2">Phone / WhatsApp</p>
+                                    <p className="text-xl font-semibold">+91 9833979711</p>
+                                </div>
+                            </div>
+
+                            <div className="bg-gray-900 p-8 rounded-lg mb-12">
+                                <p className="text-gray-500 text-sm mb-2">Location</p>
+                                <p className="text-lg font-semibold">112, Ijmima Complex, Off Link Road, Malad west. Mumbai, India</p>
+                            </div>
+
+                            <div className="flex gap-4 flex-wrap">
+                                <button className="btn-primary">Book a Meeting</button>
+                                <button className="btn-secondary">Request a Demo</button>
+                                <button className="btn-secondary">Send Us a Brief</button>
+                            </div>
+
+                            <p className="text-gray-500 text-sm mt-12">Currently attending MIFA Annecy — June 2026</p>
+                        </div>
+                    )}
+
+                    {/* Footer */}
+                    <footer className="border-t border-gray-800 py-8 px-4 mt-12">
+                        <div className="max-w-7xl mx-auto text-center text-gray-500 text-sm">
+                            <p>&copy; 2024 Mugshot Studios. All rights reserved.</p>
+                        </div>
+                    </footer>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
