@@ -12,7 +12,7 @@ export default function Navigation({ activeSection, setActiveSection }) {
 
   return (
     <nav className="fixed top-0 z-50 w-full border-b border-border bg-background/90 backdrop-blur-md">
-      <div className="w-full px-[5%] h-16 flex items-center justify-between">
+      <div className="w-full px-[10%] h-16 flex items-center justify-between">
         {/* Brand */}
         <button
           onClick={() => handleNav('home')}
