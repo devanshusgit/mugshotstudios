@@ -14,14 +14,45 @@ export default function HoverPlayCard({
   desc,
 }) {
   const videoRef = useRef(null)
+  const containerRef = useRef(null)
   const [isHovering, setIsHovering] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
   const [userStarted, setUserStarted] = useState(false)
   const [prevMuted, setPrevMuted] = useState(null)
+  const [isVisible, setIsVisible] = useState(false)
+  const [isLoaded, setIsLoaded] = useState(false)
 
+  // ── Lazy-load: only set video src when the card scrolls into view ──
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true)
+          observer.disconnect()
+        }
+      },
+      { rootMargin: "200px" } // start loading slightly before visible
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  // ── Track when video has enough data to play ──
   useEffect(() => {
     const video = videoRef.current
     if (!video) return
+    const onCanPlay = () => setIsLoaded(true)
+    video.addEventListener("canplay", onCanPlay)
+    // If already ready (cached)
+    if (video.readyState >= 3) setIsLoaded(true)
+    return () => video.removeEventListener("canplay", onCanPlay)
+  }, [isVisible])
+
+  useEffect(() => {
+    const video = videoRef.current
+    if (!video || !isVisible) return
     let ignore = false
 
     const doPlayMuted = async () => {
@@ -47,7 +78,7 @@ export default function HoverPlayCard({
     else if (!isHovering && !userStarted) doPause()
 
     return () => { ignore = true }
-  }, [isHovering, mutedOnHover, userStarted])
+  }, [isHovering, mutedOnHover, userStarted, isVisible])
 
   const handleIconClick = async () => {
     const video = videoRef.current
@@ -83,26 +114,34 @@ export default function HoverPlayCard({
       video.removeEventListener("pause", onPause)
       video.removeEventListener("ended", onEnded)
     }
-  }, [])
+  }, [isVisible])
 
   return (
     <div
+      ref={containerRef}
       className={cn("bg-card rounded-xl overflow-hidden border border-border group flex flex-col", className)}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
     >
       <div className="relative aspect-video bg-black cursor-pointer" onClick={handleIconClick}>
-        <video
-          ref={videoRef}
-          src={poster ? src : `${src}#t=0.5`}
-          poster={poster}
-          loop={loop}
-          preload="metadata"
-          playsInline
-          className="w-full h-full object-cover"
-        />
+        {isVisible ? (
+          <video
+            ref={videoRef}
+            src={`${src}#t=0.5`}
+            poster={poster}
+            loop={loop}
+            preload="metadata"
+            playsInline
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          /* Lightweight placeholder until card scrolls into view */
+          <div className="w-full h-full flex items-center justify-center">
+            <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-white/60 animate-spin" />
+          </div>
+        )}
         <AnimatePresence>
-          {(isHovering || !isPlaying) && (
+          {(isHovering || !isPlaying) && isVisible && (
             <motion.div
               key="overlay"
               initial={{ opacity: 0 }}
@@ -116,7 +155,7 @@ export default function HoverPlayCard({
                 className="pointer-events-auto bg-black/30 hover:bg-black/50 text-white rounded-full px-6 h-11 text-sm font-semibold uppercase tracking-widest"
                 aria-label={isPlaying ? "Pause video" : "Play video"}
               >
-                {isPlaying ? "Pause" : "Play"}
+                {isPlaying ? (isLoaded ? "Pause" : "Loading…") : "Play"}
               </Button>
             </motion.div>
           )}
